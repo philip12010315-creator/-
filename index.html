@@ -6,6 +6,7 @@
     <title>樂程坊 冬令營 2026</title>
     <meta name="description" content="2026 最強冬令營！結合 Minecraft、LEGO 機器人、3D列印與雷射切割。">
     
+    <!-- 引入穩定的 CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -20,41 +21,52 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .markdown-bold { font-weight: 700; color: #4f46e5; }
         #error-display { display: none; position: fixed; inset: 0; background: #fee2e2; padding: 20px; z-index: 10000; color: #991b1b; overflow: auto; }
+        .smooth-scroll { scroll-behavior: smooth; }
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
 <body class="bg-gray-50 pb-40 md:pb-48 relative">
 
+    <!-- 載入畫面 -->
     <div id="loading-screen">
         <div class="loader mb-4"></div>
         <div id="loading-text" class="text-gray-600 font-bold">🚀 正在啟動樂程坊冬令營...</div>
     </div>
     
+    <!-- 錯誤顯示區 -->
     <div id="error-display"></div>
 
     <div id="root"></div>
 
     <script>
+        // 安全機制
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             document.getElementById('loading-screen').style.display = 'none';
             var errorDiv = document.getElementById('error-display');
             errorDiv.style.display = 'block';
-            errorDiv.innerHTML = '<h3>⚠️ 發生錯誤</h3><p>' + msg + '</p>';
+            errorDiv.innerHTML = '<h3>⚠️ 發生錯誤</h3><p>' + msg + '</p><p>Line: ' + lineNo + '</p>';
             return false;
         };
 
+        // 強制移除 Loading
         setTimeout(function() {
             var loader = document.getElementById('loading-screen');
             if (loader && loader.style.display !== 'none') {
-                if(document.getElementById('root').innerHTML !== "") {
+                if(document.getElementById('root').innerHTML === "") {
+                   // console.warn("React mount timeout");
+                } else {
                    loader.style.display = 'none';
                 }
             }
-        }, 3000);
+        }, 5000);
     </script>
 
     <script type="text/babel">
+        // Gemini API Key
         const envApiKey = "AIzaSyC-pTaL-CzxUpiwYTDK_yrfyh7nip2myO0";
 
+        // --- 1. 基礎元件 ---
         function SimpleMarkdown({ text }) {
             if (!text) return null;
             const lines = text.split('\n');
@@ -110,45 +122,95 @@
             Mic: (p) => <Icon {...p} path={<g><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></g>} />,
             MicOff: (p) => <Icon {...p} path={<g><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></g>} />,
             Lock: (p) => <Icon {...p} path={<g><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>} />,
-            Save: (p) => <Icon {...p} path={<g><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></g>} />
+            Save: (p) => <Icon {...p} path={<g><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></g>} />,
+            Line: (p) => <Icon {...p} path={<path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.5 5.5 3.9 7.2.2.1.4.5.3.9-.3 1-.7 2.4-.7 2.4-.1.4.3.7.6.4l4.2-2.8c.4-.3.9-.3 1.3-.3h.4c5.5 0 10-4.1 10-9.2C22 6.1 17.5 2 12 2z" />} />
         };
 
+        // --- 2. Countdown Timer ---
         function CountdownTimer() {
             const [timeLeft, setTimeLeft] = React.useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
             React.useEffect(() => {
                 const targetDate = new Date('2025-12-31T23:59:59'); 
                 const timer = setInterval(() => {
                     const now = new Date();
                     const difference = targetDate - now;
+
                     if (difference > 0) {
                         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
                         const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
                         const minutes = Math.floor((difference / 1000 / 60) % 60);
                         const seconds = Math.floor((difference / 1000) % 60);
                         setTimeLeft({ days, hours, minutes, seconds });
-                    } else clearInterval(timer);
+                    } else {
+                        clearInterval(timer);
+                    }
                 }, 1000);
+
                 return () => clearInterval(timer);
             }, []);
+
             const f = (n) => n.toString().padStart(2, '0');
+
             return (
                 <div className="mt-8 bg-blue-900/40 backdrop-blur-md border border-blue-200/20 rounded-2xl p-4 md:p-6 max-w-3xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
                     <div className="flex items-center gap-4">
-                        <div className="bg-indigo-600 p-3 rounded-xl shadow-lg ring-1 ring-white/20"><Icons.Clock className="w-6 h-6 text-white" /></div>
-                        <div className="text-left"><div className="text-blue-100 text-sm font-medium tracking-wider mb-1">早鳥優惠倒數</div><div className="text-white font-bold text-lg md:text-xl flex items-center gap-2">12/31 前現折 <span className="bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-md text-base">$500</span></div></div>
+                        <div className="bg-indigo-600 p-3 rounded-xl shadow-lg ring-1 ring-white/20">
+                            <Icons.Clock className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                            <div className="text-blue-100 text-sm font-medium tracking-wider mb-1">早鳥優惠倒數</div>
+                            <div className="text-white font-bold text-lg md:text-xl flex items-center gap-2">
+                                12/31 前現折 <span className="bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-md text-base">$500</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex gap-3">{['天', '時', '分', '秒'].map((label, i) => (<div key={i} className="flex flex-col items-center"><div className="bg-white/10 backdrop-blur-sm text-white font-mono text-xl md:text-2xl font-bold w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">{f([timeLeft.days, timeLeft.hours, timeLeft.minutes, timeLeft.seconds][i])}</div><span className="text-blue-200 text-[10px] mt-1.5 uppercase tracking-wider">{label}</span></div>))}</div>
+                    <div className="flex gap-3">
+                        {['天', '時', '分', '秒'].map((label, i) => {
+                            const val = [timeLeft.days, timeLeft.hours, timeLeft.minutes, timeLeft.seconds][i];
+                            return (
+                                <div key={i} className="flex flex-col items-center">
+                                    <div className="bg-white/10 backdrop-blur-sm text-white font-mono text-xl md:text-2xl font-bold w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
+                                        {f(val)}
+                                    </div>
+                                    <span className="text-blue-200 text-[10px] mt-1.5 uppercase tracking-wider">{label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             );
         }
 
+        // --- 3. Scroll To Top ---
         function ScrollToTop() {
             const [visible, setVisible] = React.useState(false);
-            React.useEffect(() => { const t = () => setVisible(window.pageYOffset > 300); window.addEventListener('scroll', t); return () => window.removeEventListener('scroll', t); }, []);
+
+            React.useEffect(() => {
+                const toggleVisibility = () => {
+                    if (window.pageYOffset > 300) {
+                        setVisible(true);
+                    } else {
+                        setVisible(false);
+                    }
+                };
+                window.addEventListener('scroll', toggleVisibility);
+                return () => window.removeEventListener('scroll', toggleVisibility);
+            }, []);
+
             if (!visible) return null;
-            return <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-24 left-4 md:bottom-28 md:left-8 z-[60] bg-white/80 hover:bg-white text-gray-600 p-3 rounded-full shadow-lg border border-gray-200 transition-all hover:-translate-y-1 backdrop-blur-sm"><Icons.ArrowUp className="w-5 h-5" /></button>;
+
+            return (
+                <button 
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="fixed bottom-24 left-4 md:bottom-28 md:left-8 z-[60] bg-white/80 hover:bg-white text-gray-600 p-3 rounded-full shadow-lg border border-gray-200 transition-all hover:-translate-y-1 backdrop-blur-sm"
+                >
+                    <Icons.ArrowUp className="w-5 h-5" />
+                </button>
+            );
         }
 
+        // --- 4. Testimonials ---
         function Testimonials() {
             const reviews = [
                 { name: "陳媽媽", kid: "小學三年級", text: "孩子參加完時空探險隊後，回家一直分享做好的機器人，還主動說要學程式！真的很推薦。", stars: 5 },
@@ -159,28 +221,121 @@
             return (
                 <div className="bg-white py-12 border-t border-gray-100">
                     <div className="max-w-[95%] xl:max-w-screen-2xl mx-auto px-4 sm:px-6">
-                        <div className="text-center mb-10"><h2 className="text-2xl md:text-3xl font-bold text-gray-900">家長好評推薦</h2><p className="text-gray-500 mt-2">聽聽其他家長怎麼說</p></div>
-                        <div className="flex overflow-x-auto gap-6 pb-8 hide-scrollbar snap-x">{reviews.map((r, i) => (<div key={i} className="flex-shrink-0 w-80 bg-gray-50 p-6 rounded-2xl border border-gray-100 snap-center shadow-sm"><div className="flex items-center gap-1 mb-3 text-yellow-400">{[...Array(r.stars)].map((_, si) => <Icons.Star key={si} className="w-4 h-4 fill-current" />)}</div><p className="text-gray-700 mb-4 leading-relaxed">"{r.text}"</p><div className="flex items-center justify-between text-sm"><span className="font-bold text-gray-900">{r.name}</span><span className="text-gray-500 bg-white px-2 py-1 rounded-md border border-gray-200">{r.kid}</span></div></div>))}</div>
+                        <div className="text-center mb-10">
+                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">家長好評推薦</h2>
+                            <p className="text-gray-500 mt-2">聽聽其他家長怎麼說</p>
+                        </div>
+                        <div className="flex overflow-x-auto gap-6 pb-8 hide-scrollbar snap-x">
+                            {reviews.map((r, i) => (
+                                <div key={i} className="flex-shrink-0 w-80 bg-gray-50 p-6 rounded-2xl border border-gray-100 snap-center shadow-sm">
+                                    <div className="flex items-center gap-1 mb-3 text-yellow-400">
+                                        {[...Array(r.stars)].map((_, si) => <Icons.Star key={si} className="w-4 h-4 fill-current" />)}
+                                    </div>
+                                    <p className="text-gray-700 mb-4 leading-relaxed">"{r.text}"</p>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="font-bold text-gray-900">{r.name}</span>
+                                        <span className="text-gray-500 bg-white px-2 py-1 rounded-md border border-gray-200">{r.kid}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
         }
 
+        // --- 5. Admin Panel (Local) ---
         function AdminPanel({ images, onSave, onClose }) {
             const [localImages, setLocalImages] = React.useState(images);
             const [password, setPassword] = React.useState('');
             const [isAuthenticated, setIsAuthenticated] = React.useState(false);
-            const handleLogin = () => { if (password === 'admin') setIsAuthenticated(true); else alert('密碼錯誤 (預設: admin)'); };
-            const handleSave = () => { onSave(localImages); onClose(); alert('設定已儲存！(注意：此為預覽模式，僅保留於此裝置)'); };
-            
-            if (!isAuthenticated) return (
-                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-slide-up"><h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Icons.Key className="w-5 h-5 text-indigo-600" /> 管理員登入</h3><input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="輸入通行碼: admin" className="w-full border rounded-lg p-3 mb-4 outline-none focus:ring-2 focus:ring-indigo-500" /><div className="flex justify-end gap-2"><button onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition">取消</button><button onClick={handleLogin} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium">登入</button></div></div></div>
-            );
+
+            const handleLogin = () => {
+                if (password === 'admin') {
+                    setIsAuthenticated(true);
+                } else {
+                    alert('密碼錯誤 (預設: admin)');
+                }
+            };
+
+            const handleSave = () => {
+                onSave(localImages);
+                onClose();
+                alert('設定已儲存！(注意：此為預覽模式，僅保留於此裝置)');
+            };
+
+            if (!isAuthenticated) {
+                return (
+                    <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-slide-up">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Icons.Key className="w-5 h-5 text-indigo-600" /> 管理員登入</h3>
+                            <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="輸入通行碼: admin" className="w-full border rounded-lg p-3 mb-4 outline-none focus:ring-2 focus:ring-indigo-500" />
+                            <div className="flex justify-end gap-2">
+                                <button onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition">取消</button>
+                                <button onClick={handleLogin} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium">登入</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
-                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up"><div className="flex justify-between items-center mb-6 border-b pb-4"><h3 className="text-xl font-bold flex items-center gap-2"><Icons.Palette className="w-5 h-5 text-indigo-600" /> 活動剪影管理</h3><button onClick={onClose}><Icons.X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button></div><div className="space-y-6">{localImages.map((img, idx) => (<div key={idx} className="border border-gray-200 p-4 rounded-xl bg-gray-50/50"><div className="flex gap-4 items-start"><div className="h-24 w-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 relative"><img src={img.src} className="w-full h-full object-cover" onError={(e)=>e.target.src='https://placehold.co/800x600?text=無效連結'} referrerPolicy="no-referrer" /></div><div className="flex-grow space-y-3"><div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">圖片連結 URL</label><input type="text" value={img.src} onChange={(e) => {const newImages = [...localImages]; newImages[idx] = { ...newImages[idx], src: e.target.value }; setLocalImages(newImages);}} className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white" placeholder="https://..." /></div><div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">圖片標題</label><input type="text" value={img.label} onChange={(e) => {const newImages = [...localImages]; newImages[idx] = { ...newImages[idx], label: e.target.value }; setLocalImages(newImages);}} className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white" /></div></div></div></div>))}</div><div className="flex justify-end gap-3 mt-6 pt-4 border-t"><button onClick={onClose} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl transition">取消</button><button onClick={handleSave} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Icons.Check className="w-4 h-4" /> 儲存變更</button></div></div></div>
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up">
+                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                            <h3 className="text-xl font-bold flex items-center gap-2"><Icons.Palette className="w-5 h-5 text-indigo-600" /> 活動剪影管理</h3>
+                            <button onClick={onClose}><Icons.X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button>
+                        </div>
+                        <div className="space-y-6">
+                            {localImages.map((img, idx) => (
+                                <div key={idx} className="border border-gray-200 p-4 rounded-xl bg-gray-50/50">
+                                    <div className="flex gap-4 items-start">
+                                        <div className="h-24 w-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                            <img src={img.src} className="w-full h-full object-cover" onError={(e)=>e.target.src='https://placehold.co/800x600?text=無效連結'} referrerPolicy="no-referrer" />
+                                        </div>
+                                        <div className="flex-grow space-y-3">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">圖片連結 URL</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={img.src} 
+                                                    onChange={(e) => {
+                                                        const newImages = [...localImages];
+                                                        newImages[idx] = { ...newImages[idx], src: e.target.value };
+                                                        setLocalImages(newImages);
+                                                    }} 
+                                                    className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white" 
+                                                    placeholder="https://..." 
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">圖片標題</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={img.label} 
+                                                    onChange={(e) => {
+                                                        const newImages = [...localImages];
+                                                        newImages[idx] = { ...newImages[idx], label: e.target.value };
+                                                        setLocalImages(newImages);
+                                                    }} 
+                                                    className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white" 
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                            <button onClick={onClose} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl transition">取消</button>
+                            <button onClick={handleSave} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Icons.Check className="w-4 h-4" /> 儲存變更</button>
+                        </div>
+                    </div>
+                </div>
             );
         }
 
+        // --- 6. Gallery ---
         function Gallery() {
             const defaultImages = [
                 { src: "https://i.ibb.co/NdmWqJF2/image.jpg", label: "專注學習" },
@@ -188,6 +343,7 @@
                 { src: "https://i.ibb.co/ynB9rzf0/2025-12-12-132717.png", label: "團隊合作解題" },
                 { src: "https://i.ibb.co/HTnprMbJ/9-21.jpg", label: "動手做 Maker" }
             ];
+
             const [images, setImages] = React.useState(defaultImages);
             const [showAdmin, setShowAdmin] = React.useState(false);
             
@@ -207,76 +363,198 @@
                 <div className="bg-gray-50 py-12 relative border-t border-gray-100">
                     {showAdmin && <AdminPanel images={images} onSave={handleSaveImages} onClose={() => setShowAdmin(false)} />}
                     <div className="max-w-[95%] xl:max-w-screen-2xl mx-auto px-4 sm:px-6">
-                        <div className="text-center mb-10"><h2 className="text-2xl md:text-3xl font-bold text-gray-900">精彩活動剪影</h2><p className="text-gray-500 mt-2">專注的眼神，是學習最美的風景</p></div>
+                        <div className="text-center mb-10">
+                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">精彩活動剪影</h2>
+                            <p className="text-gray-500 mt-2">專注的眼神，是學習最美的風景</p>
+                        </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                             {images.map((img, i) => (
-                                <div key={i} className="rounded-2xl overflow-hidden shadow-lg group relative aspect-[4/3] cursor-pointer bg-gray-200 border-4 border-white"><img src={img.src} alt={`活動照片 ${i+1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" referrerPolicy="no-referrer" onError={(e)=>e.target.src='https://placehold.co/800x600?text=圖片載入中'} /><div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4"><span className="text-white font-bold text-sm md:text-base tracking-wide">{img.label}</span></div></div>
+                                <div key={i} className="rounded-2xl overflow-hidden shadow-lg group relative aspect-[4/3] cursor-pointer bg-gray-200 border-4 border-white">
+                                    <img src={img.src} alt={`活動照片 ${i+1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" referrerPolicy="no-referrer" onError={(e)=>e.target.src='https://placehold.co/800x600?text=圖片載入中'} />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
+                                        <span className="text-white font-bold text-sm md:text-base tracking-wide">{img.label}</span>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </div>
-                    {/* 隱藏的按鈕 trigger */}
-                    <button id="gallery-admin-trigger" className="hidden" onClick={() => setShowAdmin(true)}></button>
+                    
+                    <div className="flex justify-center mt-12 mb-4">
+                        <button 
+                            onClick={() => setShowAdmin(true)} 
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 rounded-full text-xs font-bold transition-colors border border-gray-300 hover:border-indigo-300 admin-btn"
+                        >
+                            <Icons.Lock className="w-3 h-3" /> 管理員登入 (更換照片)
+                        </button>
+                    </div>
                 </div>
             );
         }
 
+        // --- 7. AI Chat Assistant ---
         function AIChatAssistant({ camps }) {
             const [isOpen, setIsOpen] = React.useState(false);
-            const [messages, setMessages] = React.useState([{ role: 'model', text: '👋 您好！我是樂程坊 AI 顧問。想了解 **適合年齡** 或 **早鳥優惠** 嗎？我可以快速為您說明！✨' }]);
+            const [messages, setMessages] = React.useState([
+                { role: 'model', text: '👋 您好！我是樂程坊 AI 顧問。想了解 **適合年齡** 或 **早鳥優惠** 嗎？我可以快速為您說明！✨' }
+            ]);
             const [input, setInput] = React.useState('');
             const [isLoading, setIsLoading] = React.useState(false);
             const [isListening, setIsListening] = React.useState(false);
             const [userApiKey, setUserApiKey] = React.useState('');
             const messagesEndRef = React.useRef(null);
-            React.useEffect(() => { const storedKey = localStorage.getItem('gemini_api_key'); if (storedKey) setUserApiKey(storedKey); }, []);
+            
+            React.useEffect(() => { 
+                try {
+                    const storedKey = localStorage.getItem('gemini_api_key'); 
+                    if (storedKey) setUserApiKey(storedKey); 
+                } catch(e) {}
+            }, []);
+            
             const suggestedQuestions = ["適合幾歲？", "有什麼優惠？", "時空探險隊內容？", "✨ 生成創意點子"];
+            
             React.useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+            
             const startListening = () => {
-                if (!('webkitSpeechRecognition' in window)) { alert("您的瀏覽器不支援語音輸入，請使用 Chrome 或 Safari。"); return; }
-                const recognition = new window.webkitSpeechRecognition(); recognition.lang = 'zh-TW'; recognition.continuous = false; recognition.interimResults = false;
-                recognition.onstart = () => setIsListening(true); recognition.onend = () => setIsListening(false); recognition.onerror = (e) => { console.error(e); setIsListening(false); };
-                recognition.onresult = (event) => { const transcript = event.results[0][0].transcript; setInput(transcript); setTimeout(() => handleSend(transcript), 500); };
+                if (!('webkitSpeechRecognition' in window)) {
+                    alert("您的瀏覽器不支援語音輸入，請使用 Chrome 或 Safari。");
+                    return;
+                }
+                const recognition = new window.webkitSpeechRecognition();
+                recognition.lang = 'zh-TW';
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.onstart = () => setIsListening(true);
+                recognition.onend = () => setIsListening(false);
+                recognition.onerror = (e) => { console.error(e); setIsListening(false); };
+                
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    setInput(transcript);
+                    setTimeout(() => handleSend(transcript), 500);
+                };
+
                 recognition.start();
             };
+
             const callGemini = async (userQuery) => {
-                const activeKey = envApiKey || userApiKey; if (!activeKey) return "請先設定 API Key。";
+                const activeKey = envApiKey || userApiKey;
+                if (!activeKey) return "請先設定 API Key。";
+
                 setIsLoading(true);
                 try {
-                    const campContext = Object.values(camps).map(camp => `【${camp.title}】\n時間:${camp.date}\n重點:${camp.tags.join('/')}\n課表:${camp.schedule.map(d=>d.title).join(',')}`).join('\n');
+                    const campContext = Object.values(camps).map(camp => 
+                        `【${camp.title}】\n時間:${camp.date}\n重點:${camp.tags.join('/')}\n課表:${camp.schedule.map(d=>d.title).join(',')}`
+                    ).join('\n');
                     const promoContext = `優惠: 1.早鳥折500(12/31前) 2.舊生折500 3.團報折500 4.分享折500。最高折2000。`;
                     const systemPrompt = `你是一個專業簡潔的夏令營顧問。**回答規則：** 1. **精簡扼要**：回答控制在 100 字內。 2. **格式化**：必須使用 Markdown 格式 (粗體、清單)。 3. **語氣**：親切、繁體中文。 資訊：\n${campContext}\n${promoContext}`;
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } }) });
-                    const data = await response.json(); return data.candidates?.[0]?.content?.parts?.[0]?.text || "抱歉，請再說一次。";
-                } catch (error) { return "連線錯誤，請稍後再試。"; } finally { setIsLoading(false); }
+
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } })
+                    });
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "抱歉，請再說一次。";
+                } catch (error) {
+                    return "連線錯誤，請稍後再試。";
+                } finally {
+                    setIsLoading(false);
+                }
             };
-            const handleSend = async (text = input) => { if (!text.trim()) return; const userMsg = text.trim(); setMessages(prev => [...prev, { role: 'user', text: userMsg }]); setInput(''); const reply = await callGemini(userMsg); setMessages(prev => [...prev, { role: 'model', text: reply }]); };
-            const handleKeyPress = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+
+            const handleSend = async (text = input) => {
+                if (!text.trim()) return;
+                const userMsg = text.trim();
+                setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+                setInput('');
+                const reply = await callGemini(userMsg);
+                setMessages(prev => [...prev, { role: 'model', text: reply }]);
+            };
+
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            };
+
             const needsKey = !envApiKey && !userApiKey;
 
             return (
                 <>
-                    <button onClick={() => setIsOpen(!isOpen)} className={`fixed bottom-24 right-4 md:bottom-28 md:right-8 z-[60] p-4 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center hover:scale-110 active:scale-95 group ${isOpen ? 'bg-gray-800 rotate-90' : 'bg-gradient-to-r from-indigo-500 to-purple-600'}`}>
+                    <button 
+                        onClick={() => setIsOpen(!isOpen)} 
+                        className={`fixed bottom-24 right-4 md:bottom-28 md:right-8 z-[60] p-4 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center hover:scale-110 active:scale-95 group ${isOpen ? 'bg-gray-800 rotate-90' : 'bg-gradient-to-r from-indigo-500 to-purple-600'}`}
+                    >
                         {isOpen ? <Icons.X className="w-6 h-6 text-white" /> : <Icons.MessageCircle className="w-7 h-7 text-white" />}
                         {!isOpen && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>}
                     </button>
+
                     {isOpen && (
                         <div className="fixed bottom-40 right-4 md:bottom-44 md:right-8 z-[60] w-[90vw] md:w-96 h-[500px] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-slide-up ring-1 ring-black/5">
-                            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex items-center justify-between"><div className="flex items-center gap-2"><div className="bg-white/20 p-1.5 rounded-lg"><Icons.Sparkles className="w-5 h-5 text-yellow-300" /></div><span className="text-white font-bold">AI 課程顧問</span></div><button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white"><Icons.X className="w-5 h-5"/></button></div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">{messages.map((msg, idx) => (<div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'}`}>
-                                <SimpleMarkdown text={msg.text} />
-                            </div></div>))} {isLoading && <div className="flex justify-start"><div className="bg-white text-gray-500 rounded-2xl px-4 py-3 text-sm border border-gray-100 typing-cursor">AI 思考中...</div></div>} <div ref={messagesEndRef} /></div>
-                            {!needsKey && (<div className="px-4 py-2 bg-gray-50 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-2">{suggestedQuestions.map((q, idx) => (<button key={idx} onClick={() => handleSend(q)} className="text-xs bg-white border border-indigo-100 text-indigo-600 px-3 py-1.5 rounded-full hover:bg-indigo-50 shadow-sm" disabled={isLoading}>{q}</button>))}</div>)}
-                            <div className="p-3 bg-white border-t border-gray-100 flex gap-2 items-center"><input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={handleKeyPress} placeholder={needsKey ? "請輸入 API Key" : (isListening ? "聆聽中..." : "輸入問題...")} className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />{!needsKey && (<button onClick={startListening} disabled={isLoading} className={`p-2 rounded-xl transition ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>{isListening ? <Icons.Mic className="w-5 h-5" /> : <Icons.MicOff className="w-5 h-5" />}</button>)}<button onClick={() => handleSend()} disabled={isLoading} className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"><Icons.Send className="w-5 h-5" /></button></div>
+                            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="bg-white/20 p-1.5 rounded-lg"><Icons.Sparkles className="w-5 h-5 text-yellow-300" /></div>
+                                    <span className="text-white font-bold">AI 課程顧問</span>
+                                </div>
+                                <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white"><Icons.X className="w-5 h-5"/></button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                                {messages.map((msg, idx) => (
+                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'}`}>
+                                            <SimpleMarkdown text={msg.text} />
+                                        </div>
+                                    </div>
+                                ))}
+                                {isLoading && <div className="flex justify-start"><div className="bg-white text-gray-500 rounded-2xl px-4 py-3 text-sm border border-gray-100 typing-cursor">AI 思考中...</div></div>}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            {!needsKey && (
+                                <div className="px-4 py-2 bg-gray-50 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-2">
+                                    {suggestedQuestions.map((q, idx) => (
+                                        <button key={idx} onClick={() => handleSend(q)} className="text-xs bg-white border border-indigo-100 text-indigo-600 px-3 py-1.5 rounded-full hover:bg-indigo-50 shadow-sm" disabled={isLoading}>{q}</button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="p-3 bg-white border-t border-gray-100 flex gap-2 items-center">
+                                <input 
+                                    type="text" 
+                                    value={input} 
+                                    onChange={(e) => setInput(e.target.value)} 
+                                    onKeyPress={handleKeyPress} 
+                                    placeholder={needsKey ? "請輸入 API Key" : (isListening ? "聆聽中..." : "輸入問題...")} 
+                                    className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                />
+                                {!needsKey && (
+                                    <button onClick={startListening} disabled={isLoading} className={`p-2 rounded-xl transition ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                        {isListening ? <Icons.Mic className="w-5 h-5" /> : <Icons.MicOff className="w-5 h-5" />}
+                                    </button>
+                                )}
+                                <button onClick={() => handleSend()} disabled={isLoading} className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"><Icons.Send className="w-5 h-5" /></button>
+                            </div>
                         </div>
                     )}
                 </>
             );
-        };
+        }
 
+        // --- 8. Main App ---
         function WinterCampApp() {
             const [activeTab, setActiveTab] = React.useState(null);
             const [showPromoDetails, setShowPromoDetails] = React.useState(false);
-            const toggleTab = (id) => { if (activeTab === id) setActiveTab(null); else setActiveTab(id); };
+
+            const toggleTab = (id) => {
+                if (activeTab === id) {
+                    setActiveTab(null);
+                } else {
+                    setActiveTab(id);
+                }
+            };
 
             const camps = {
                 time: {
@@ -363,11 +641,16 @@
                                     <img src="https://i.ibb.co/JW0ZQX0g/1.jpg" alt="樂程坊 Logo" className="h-8 md:h-10 w-auto rounded-lg object-contain" onError={(e) => e.target.style.display = 'none'} />
                                     <span className="font-bold text-lg md:text-xl text-gray-800 tracking-tight">樂程坊 冬令營</span>
                                 </div>
-                                <div className="flex gap-4 items-center">
+                                <div className="flex gap-2 md:gap-4 items-center">
                                     <div className="hidden md:flex space-x-8">
                                         <a href="#courses" className="text-gray-600 hover:text-indigo-600 font-medium flex items-center">課程介紹</a>
                                         <a href="#features" className="text-gray-600 hover:text-indigo-600 font-medium flex items-center">營隊特色</a>
                                     </div>
+                                    <a href="https://lin.ee/pYiEYcG" target="_blank" rel="noopener noreferrer" className="bg-[#06C755] text-white px-3 py-2 md:px-4 md:py-2 rounded-full font-medium hover:bg-[#05b34c] transition-colors shadow-lg flex items-center gap-1 text-sm md:text-base">
+                                        <Icons.Line className="w-5 h-5 fill-current" />
+                                        <span className="hidden md:inline">加入好友</span>
+                                        <span className="md:hidden">LINE</span>
+                                    </a>
                                     <a href="https://forms.gle/f3sfoTYYNKuqbZSV9" target="_blank" rel="noopener noreferrer" className="bg-indigo-600 text-white px-4 py-2 md:px-5 md:py-2 rounded-full font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 flex items-center text-sm md:text-base">立即報名</a>
                                 </div>
                             </div>
@@ -390,7 +673,7 @@
                             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
                                 <button onClick={() => document.getElementById('courses').scrollIntoView({behavior: 'smooth'})} className="bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-xl border-b-4 border-gray-300 active:border-b-0 active:translate-y-1">探索課程</button>
                             </div>
-                            <div className="mt-8 md:mt-12 flex justify-center"><img src="https://i.ibb.co/LDF83gSC/unnamed.jpg" alt="課程活動總覽" className="rounded-2xl shadow-2xl border-4 border-white/20 max-w-full h-auto md:max-w-4xl hover:scale-[1.01] transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} /></div>
+                            <div className="mt-8 md:mt-12 flex justify-center"><img src="https://i.ibb.co/LDF83gSC/unnamed.jpg" alt="課程活動總覽" className="rounded-2xl shadow-2xl border-4 border-white/20 max-w-full h-auto md:max-w-4xl hover:scale-[1.01] transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} referrerPolicy="no-referrer" /></div>
                         </div>
                     </div>
 
@@ -480,7 +763,13 @@
                         )}
                         <div className="bg-white/95 backdrop-blur-md border border-gray-200 shadow-2xl rounded-2xl p-2.5 md:p-4 max-w-4xl mx-auto flex items-center justify-between gap-2 md:gap-4 ring-1 ring-black/5">
                             <div className="flex items-center gap-2 md:gap-3 cursor-pointer group flex-1" onClick={() => setShowPromoDetails(!showPromoDetails)}><div className="bg-gradient-to-br from-red-500 to-pink-600 text-white p-2 md:p-2.5 rounded-full shadow-md group-hover:scale-110 transition-transform duration-300"><Icons.Gift className="w-4 h-4 md:w-6 md:h-6" /></div><div className="flex flex-col"><span className="text-red-600 font-extrabold text-sm md:text-lg tracking-tight leading-tight">最高折 $2000</span><span className="text-gray-400 text-[10px] md:text-sm flex items-center gap-1 group-hover:text-red-400 transition-colors">查看詳情 <Icons.ChevronUp className={`w-3 h-3 transition-transform duration-300 ${showPromoDetails ? 'rotate-180' : ''}`} /></span></div></div>
-                            <a href="https://forms.gle/f3sfoTYYNKuqbZSV9" target="_blank" rel="noopener noreferrer" className="bg-indigo-600 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 hover:shadow-indigo-200 transition-all active:scale-95 whitespace-nowrap text-sm md:text-base flex items-center gap-1.5 md:gap-2">立即報名 <Icons.ChevronRight className="w-4 h-4 hidden sm:block" /></a>
+                            <div className="flex items-center gap-2">
+                                <a href="https://lin.ee/pYiEYcG" target="_blank" rel="noopener noreferrer" className="bg-[#06C755] text-white p-2.5 md:px-4 md:py-3 rounded-xl font-bold shadow-lg hover:bg-[#05b34c] transition-all active:scale-95 flex items-center justify-center">
+                                    <Icons.Line className="w-5 h-5 fill-current" />
+                                    <span className="hidden md:inline ml-1">加入官方LINE</span>
+                                </a>
+                                <a href="https://forms.gle/f3sfoTYYNKuqbZSV9" target="_blank" rel="noopener noreferrer" className="bg-indigo-600 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 hover:shadow-indigo-200 transition-all active:scale-95 whitespace-nowrap text-sm md:text-base flex items-center gap-1.5 md:gap-2">立即報名 <Icons.ChevronRight className="w-4 h-4 hidden sm:block" /></a>
+                            </div>
                         </div>
                     </div>
 
@@ -493,9 +782,21 @@
             );
         }
 
-        // Initialize React
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<WinterCampApp />);
+        // Initialize React - 關鍵的載入順序控制
+        const rootElement = document.getElementById('root');
+        
+        try {
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(<WinterCampApp />);
+            
+            // React 成功啟動後，移除 Loading 畫面
+            const loader = document.getElementById('loading-screen');
+            if(loader) loader.style.display = 'none';
+        } catch (error) {
+            console.error("React render failed:", error);
+            // 如果渲染失敗，讓全域錯誤處理去接
+            throw error; 
+        }
     </script>
 </body>
 </html>
